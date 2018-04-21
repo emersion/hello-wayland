@@ -1,8 +1,8 @@
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
-#include <fcntl.h>
 #include <unistd.h>
 
 static int set_cloexec(int fd) {
