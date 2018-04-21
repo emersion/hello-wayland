@@ -30,11 +30,12 @@ int os_create_anonymous_file(off_t size) {
 	strcat(name, template);
 
 	int fd = mkstemp(name);
-	free(name);
 	if (fd < 0) {
+		free(name);
 		return -1;
 	}
 	unlink(name);
+	free(name);
 
 	if (set_cloexec(fd) < 0) {
 		close(fd);
