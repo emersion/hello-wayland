@@ -1,4 +1,3 @@
-#include <linux/input-event-codes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +5,11 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <wayland-client.h>
+#ifdef __linux__
+#include <linux/input-event-codes.h>
+#elif __FreeBSD__
+#include <dev/evdev/input-event-codes.h>
+#endif
 
 #include "cat.h"
 #include "os-create-anonymous-file.h"
