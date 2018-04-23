@@ -1,6 +1,6 @@
 WAYLAND_FLAGS=`pkg-config wayland-client --cflags --libs`
 WAYLAND_PROTOCOLS_DIR=`pkg-config wayland-protocols --variable=pkgdatadir`
-WAYLAND_SCANNER?=wayland-scanner
+WAYLAND_SCANNER=`pkg-config --variable=wayland_scanner wayland-scanner`
 CFLAGS?="-std=c11 -Wall -Werror -fvisibility=hidden"
 
 XDG_SHELL_FILES=xdg-shell-client-protocol.h xdg-shell-protocol.c
