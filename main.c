@@ -21,7 +21,6 @@ static const int height = 128;
 static bool running = true;
 
 static struct wl_shm *shm = NULL;
-static struct wl_seat *seat = NULL;
 static struct wl_compositor *compositor = NULL;
 static struct xdg_wm_base *xdg_wm_base = NULL;
 
