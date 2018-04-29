@@ -144,6 +144,11 @@ int main(int argc, char *argv[]) {
 	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
+	if (shm == NULL) { fprintf(stderr, "no %s support\n", wl_shm_interface.name); }
+	if (compositor == NULL) { fprintf(stderr, "no %s support\n", wl_compositor_interface.name); }
+	if (xdg_wm_base == NULL) { fprintf(stderr, "no %s support\n", xdg_wm_base_interface.name); }
+
+
 	if (shm == NULL || compositor == NULL || xdg_wm_base == NULL) {
 		fprintf(stderr, "no wl_shm, wl_compositor or xdg_wm_base support\n");
 		return EXIT_FAILURE;
