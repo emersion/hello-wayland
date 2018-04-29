@@ -14,7 +14,7 @@
 
 #include "cat.h"
 #include "os-create-anonymous-file.h"
-#include "xdg-shell-client-protocol.h"
+#include <wayland-xdg-shell-client-protocol.h>
 
 static const int width = 128;
 static const int height = 128;
@@ -125,7 +125,7 @@ static struct wl_buffer *create_buffer() {
 
 	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
 	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-		stride, WL_SHM_FORMAT_XBGR8888);
+		stride, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 
 	memcpy(shm_data, cat_tex.pixel_data, size);
