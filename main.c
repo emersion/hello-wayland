@@ -1,3 +1,5 @@
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,14 +8,13 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
+#include <wayland-egl.h>
 #ifdef __linux__
 #include <linux/input-event-codes.h>
 #elif __FreeBSD__
 #include <dev/evdev/input-event-codes.h>
 #endif
 
-#include "cat.h"
-#include "os-create-anonymous-file.h"
 #include "xdg-shell-client-protocol.h"
 
 static const int width = 128;
@@ -21,11 +22,9 @@ static const int height = 128;
 
 static bool running = true;
 
-static struct wl_shm *shm = NULL;
 static struct wl_compositor *compositor = NULL;
 static struct xdg_wm_base *xdg_wm_base = NULL;
 
-static void *shm_data = NULL;
 static struct xdg_toplevel *xdg_toplevel = NULL;
 
 static void noop() {
@@ -82,17 +81,16 @@ static const struct wl_seat_listener seat_listener = {
 
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
-	if (strcmp(interface, wl_shm_interface.name) == 0) {
-		shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
-	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
+	if (strcmp(interface, wl_seat_interface.name) == 0) {
 		struct wl_seat *seat =
 			wl_registry_bind(registry, name, &wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (strcmp(interface, wl_compositor_interface.name) == 0) {
-		compositor = wl_registry_bind(registry, name,
-			&wl_compositor_interface, 1);
+		compositor =
+			wl_registry_bind(registry, name, &wl_compositor_interface, 1);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
-		xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+		xdg_wm_base =
+			wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
 	}
 }
 
@@ -106,33 +104,6 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
-static struct wl_buffer *create_buffer() {
-	int stride = width * 4;
-	int size = stride * height;
-
-	int fd = os_create_anonymous_file(size);
-	if (fd < 0) {
-		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
-		return NULL;
-	}
-
-	shm_data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (shm_data == MAP_FAILED) {
-		fprintf(stderr, "mmap failed: %m\n");
-		close(fd);
-		return NULL;
-	}
-
-	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-		stride, WL_SHM_FORMAT_ARGB8888);
-	wl_shm_pool_destroy(pool);
-
-	// MagickImage is from cat.h
-	memcpy(shm_data, MagickImage, size);
-	return buffer;
-}
-
 int main(int argc, char *argv[]) {
 	struct wl_display *display = wl_display_connect(NULL);
 	if (display == NULL) {
@@ -145,15 +116,49 @@ int main(int argc, char *argv[]) {
 	wl_display_dispatch(display);
 	wl_display_roundtrip(display);
 
-	if (shm == NULL || compositor == NULL || xdg_wm_base == NULL) {
+	if (compositor == NULL || xdg_wm_base == NULL) {
 		fprintf(stderr, "no wl_shm, wl_compositor or xdg_wm_base support\n");
 		return EXIT_FAILURE;
 	}
 
-	struct wl_buffer *buffer = create_buffer();
-	if (buffer == NULL) {
+	EGLDisplay egl_display = eglGetDisplay((EGLNativeDisplayType)display);
+	if (egl_display == EGL_NO_DISPLAY) {
+		fprintf(stderr, "failed to create EGL display\n");
 		return EXIT_FAILURE;
 	}
+
+	EGLint major, minor;
+	if (!eglInitialize(egl_display, &major, &minor)) {
+		fprintf(stderr, "failed to initialize EGL\n");
+		return EXIT_FAILURE;
+	}
+
+	EGLint count;
+	eglGetConfigs(egl_display, NULL, 0, &count);
+
+	EGLint config_attribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 8,
+		EGL_GREEN_SIZE, 8,
+		EGL_BLUE_SIZE, 8,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_NONE,
+	};
+	EGLint n = 0;
+	EGLConfig *configs = calloc(count, sizeof(EGLConfig));
+	eglChooseConfig(egl_display, config_attribs, configs, count, &n);
+	if (n == 0) {
+		fprintf(stderr, "failed to choose an EGL config\n");
+		return EXIT_FAILURE;
+	}
+	EGLConfig egl_config = configs[0];
+
+	EGLint context_attribs[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 2,
+		EGL_NONE,
+	};
+	EGLContext egl_context = eglCreateContext(egl_display, egl_config,
+		EGL_NO_CONTEXT, context_attribs);
 
 	struct wl_surface *surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
@@ -166,8 +171,25 @@ int main(int argc, char *argv[]) {
 	wl_surface_commit(surface);
 	wl_display_roundtrip(display);
 
-	wl_surface_attach(surface, buffer, 0, 0);
-	wl_surface_commit(surface);
+	struct wl_egl_window *egl_window =
+		wl_egl_window_create(surface, width, height);
+	EGLSurface egl_surface = eglCreateWindowSurface(egl_display, egl_config,
+		(EGLNativeWindowType)egl_window, NULL);
+
+	if (!eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
+		fprintf(stderr, "eglMakeCurrent failed\n");
+		return EXIT_FAILURE;
+	}
+
+	eglSwapInterval(egl_display, 0);
+
+	glClearColor(1.0, 1.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	if (!eglSwapBuffers(egl_display, egl_surface)) {
+		fprintf(stderr, "eglSwapBuffers failed\n");
+		return EXIT_FAILURE;
+	}
 
 	while (wl_display_dispatch(display) != -1 && running) {
 		// This space intentionally left blank
@@ -176,7 +198,6 @@ int main(int argc, char *argv[]) {
 	xdg_toplevel_destroy(xdg_toplevel);
 	xdg_surface_destroy(xdg_surface);
 	wl_surface_destroy(surface);
-	wl_buffer_destroy(buffer);
 
 	return EXIT_SUCCESS;
 }
