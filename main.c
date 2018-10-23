@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 199309L
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <stdbool.h>
@@ -5,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
@@ -25,7 +27,16 @@ static bool running = true;
 static struct wl_compositor *compositor = NULL;
 static struct xdg_wm_base *xdg_wm_base = NULL;
 
+static struct wl_surface *surface = NULL;
 static struct xdg_toplevel *xdg_toplevel = NULL;
+
+static EGLDisplay egl_display = NULL;
+static EGLContext egl_context = NULL;
+static EGLSurface egl_surface = NULL;
+
+static struct timespec last_frame = {0};
+static float color[3] = {0};
+static size_t dec = 0;
 
 static void noop() {
 	// This space intentionally left blank
@@ -79,6 +90,62 @@ static const struct wl_seat_listener seat_listener = {
 	.capabilities = seat_handle_capabilities,
 };
 
+static void render(void);
+
+static void frame_handle_done(void *data, struct wl_callback *callback,
+		uint32_t time) {
+	wl_callback_destroy(callback);
+	render();
+}
+
+static const struct wl_callback_listener frame_listener = {
+	.done = frame_handle_done,
+};
+
+static void render(void) {
+	// Update color
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+
+	long ms = (ts.tv_sec - last_frame.tv_sec) * 1000 +
+		(ts.tv_nsec - last_frame.tv_nsec) / 1000000;
+	size_t inc = (dec + 1) % 3;
+	color[inc] += ms / 2000.0f;
+	color[dec] -= ms / 2000.0f;
+	if (color[dec] < 0.0f) {
+		color[inc] = 1.0f;
+		color[dec] = 0.0f;
+		dec = inc;
+	}
+	last_frame = ts;
+
+	// And draw a new frame
+	if (!eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
+		fprintf(stderr, "eglMakeCurrent failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+	glClearColor(color[0], color[1], color[2], 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	// By default, eglSwapBuffers blocks until we receive the next frame event.
+	// This is undesirable since it makes it impossible to process other events
+	// (such as input events) while waiting for the next frame event. Setting
+	// the swap interval to zero and managing frame events manually prevents
+	// this behavior.
+	eglSwapInterval(egl_display, 0);
+
+	// Register a frame callback to know when we need to draw the next frame
+	struct wl_callback *callback = wl_surface_frame(surface);
+	wl_callback_add_listener(callback, &frame_listener, NULL);
+
+	// This will attach a new buffer and commit the surface
+	if (!eglSwapBuffers(egl_display, egl_surface)) {
+		fprintf(stderr, "eglSwapBuffers failed\n");
+		exit(EXIT_FAILURE);
+	}
+}
+
 static void handle_global(void *data, struct wl_registry *registry,
 		uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, wl_seat_interface.name) == 0) {
@@ -121,7 +188,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	EGLDisplay egl_display = eglGetDisplay((EGLNativeDisplayType)display);
+	egl_display = eglGetDisplay((EGLNativeDisplayType)display);
 	if (egl_display == EGL_NO_DISPLAY) {
 		fprintf(stderr, "failed to create EGL display\n");
 		return EXIT_FAILURE;
@@ -157,10 +224,10 @@ int main(int argc, char *argv[]) {
 		EGL_CONTEXT_CLIENT_VERSION, 2,
 		EGL_NONE,
 	};
-	EGLContext egl_context = eglCreateContext(egl_display, egl_config,
+	egl_context = eglCreateContext(egl_display, egl_config,
 		EGL_NO_CONTEXT, context_attribs);
 
-	struct wl_surface *surface = wl_compositor_create_surface(compositor);
+	surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
 		xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
 	xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
@@ -168,28 +235,16 @@ int main(int argc, char *argv[]) {
 	xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
 	xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, NULL);
 
+	struct wl_egl_window *egl_window =
+		wl_egl_window_create(surface, width, height);
+	egl_surface = eglCreateWindowSurface(egl_display, egl_config,
+		(EGLNativeWindowType)egl_window, NULL);
+
 	wl_surface_commit(surface);
 	wl_display_roundtrip(display);
 
-	struct wl_egl_window *egl_window =
-		wl_egl_window_create(surface, width, height);
-	EGLSurface egl_surface = eglCreateWindowSurface(egl_display, egl_config,
-		(EGLNativeWindowType)egl_window, NULL);
-
-	if (!eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
-		fprintf(stderr, "eglMakeCurrent failed\n");
-		return EXIT_FAILURE;
-	}
-
-	eglSwapInterval(egl_display, 0);
-
-	glClearColor(1.0, 1.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	if (!eglSwapBuffers(egl_display, egl_surface)) {
-		fprintf(stderr, "eglSwapBuffers failed\n");
-		return EXIT_FAILURE;
-	}
+	// Draw the first frame
+	render();
 
 	while (wl_display_dispatch(display) != -1 && running) {
 		// This space intentionally left blank
