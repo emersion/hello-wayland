@@ -13,7 +13,7 @@
 #endif
 
 #include "cat.h"
-#include "os-create-anonymous-file.h"
+#include "shm.h"
 #include "xdg-shell-client-protocol.h"
 
 static const int width = 128;
@@ -110,7 +110,7 @@ static struct wl_buffer *create_buffer() {
 	int stride = width * 4;
 	int size = stride * height;
 
-	int fd = os_create_anonymous_file(size);
+	int fd = create_shm_file(size);
 	if (fd < 0) {
 		fprintf(stderr, "creating a buffer file for %d B failed: %m\n", size);
 		return NULL;

@@ -6,12 +6,12 @@ CFLAGS ?= -std=c11 -Wall -Werror -g
 XDG_SHELL_PROTOCOL = $(WAYLAND_PROTOCOLS_DIR)/stable/xdg-shell/xdg-shell.xml
 
 XDG_SHELL_FILES=xdg-shell-client-protocol.h xdg-shell-protocol.c
-OS_CREATE_ANONYMOUS_FILE_FILES=os-create-anonymous-file.c os-create-anonymous-file.h
+SHM_FILES=shm.c shm.h
 
 all: hello-wayland
 
-hello-wayland: main.c cat.h $(XDG_SHELL_FILES) $(OS_CREATE_ANONYMOUS_FILE_FILES)
-	$(CC) $(CFLAGS) -o hello-wayland $(WAYLAND_FLAGS) *.c
+hello-wayland: main.c cat.h $(XDG_SHELL_FILES) $(SHM_FILES)
+	$(CC) $(CFLAGS) -o hello-wayland $(WAYLAND_FLAGS) -lrt *.c
 
 xdg-shell-client-protocol.h:
 	$(WAYLAND_SCANNER) client-header $(XDG_SHELL_PROTOCOL) xdg-shell-client-protocol.h
