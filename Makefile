@@ -11,7 +11,7 @@ SHM_FILES=shm.c shm.h
 all: hello-wayland
 
 hello-wayland: main.c cat.h $(XDG_SHELL_FILES) $(SHM_FILES)
-	$(CC) $(CFLAGS) -o hello-wayland $(WAYLAND_FLAGS) -lrt *.c
+	$(CC) $(CFLAGS) -o $@ $^ -lrt $(WAYLAND_FLAGS)
 
 xdg-shell-client-protocol.h:
 	$(WAYLAND_SCANNER) client-header $(XDG_SHELL_PROTOCOL) xdg-shell-client-protocol.h
