@@ -22,6 +22,7 @@ static struct wl_compositor *compositor = NULL;
 static struct xdg_wm_base *xdg_wm_base = NULL;
 
 static void *shm_data = NULL;
+static struct wl_surface *surface = NULL;
 static struct xdg_toplevel *xdg_toplevel = NULL;
 
 static void noop() {
@@ -31,6 +32,7 @@ static void noop() {
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
 	xdg_surface_ack_configure(xdg_surface, serial);
+	wl_surface_commit(surface);
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
@@ -150,7 +152,7 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	struct wl_surface *surface = wl_compositor_create_surface(compositor);
+	surface = wl_compositor_create_surface(compositor);
 	struct xdg_surface *xdg_surface =
 		xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
 	xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
