@@ -17,8 +17,8 @@
 
 #include "xdg-shell-client-protocol.h"
 
-static const int width = 128;
-static const int height = 128;
+static const int width = 512;
+static const int height = 512;
 
 static bool running = true;
 
@@ -164,6 +164,9 @@ int main(int argc, char *argv[]) {
 	struct xdg_surface *xdg_surface =
 		xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
 	xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
+
+	xdg_toplevel_set_min_size(xdg_toplevel, width, height);
+	xdg_toplevel_set_max_size(xdg_toplevel, width, height);
 
 	xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
 	xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, NULL);
