@@ -2,10 +2,10 @@
 
 A hello world Wayland client, 2018 edition.
 
-This is a simple client showing a picture. It uses the [xdg-shell][1] protocol.
+This is a simple client showing a picture. It uses the [xdg-shell] protocol.
 
 ## License
 
 MIT
 
-[1]: https://github.com/wayland-project/wayland-protocols/tree/master/stable/xdg-shell
+[xdg-shell]: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/master/stable/xdg-shell
