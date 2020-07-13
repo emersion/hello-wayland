@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
 	wl_display_roundtrip(display);
 
 	if (compositor == NULL || xdg_wm_base == NULL) {
-		fprintf(stderr, "no wl_shm, wl_compositor or xdg_wm_base support\n");
+		fprintf(stderr, "no wl_compositor or xdg_wm_base support\n");
 		return EXIT_FAILURE;
 	}
 
