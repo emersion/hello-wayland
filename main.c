@@ -1,4 +1,5 @@
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <GLES2/gl2.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -121,7 +122,23 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	EGLDisplay egl_display = eglGetDisplay((EGLNativeDisplayType)display);
+	const char *client_exts_str = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+	if (client_exts_str == NULL) {
+		fprintf(stderr, "failed to query EGL client extensions\n");
+		return EXIT_FAILURE;
+	}
+	if (strstr(client_exts_str, "EGL_EXT_platform_wayland") == NULL) {
+		fprintf(stderr, "missing EGL_EXT_platform_wayland\n");
+		return EXIT_FAILURE;
+	}
+
+	PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT =
+		(void *)eglGetProcAddress("eglGetPlatformDisplayEXT");
+	PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT =
+		(void *)eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
+
+	EGLDisplay egl_display = eglGetPlatformDisplayEXT(EGL_PLATFORM_WAYLAND_EXT,
+		display, NULL);
 	if (egl_display == EGL_NO_DISPLAY) {
 		fprintf(stderr, "failed to create EGL display\n");
 		return EXIT_FAILURE;
@@ -133,25 +150,21 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	EGLint count;
-	eglGetConfigs(egl_display, NULL, 0, &count);
-
 	EGLint config_attribs[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-		EGL_RED_SIZE, 8,
-		EGL_GREEN_SIZE, 8,
-		EGL_BLUE_SIZE, 8,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
 		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 		EGL_NONE,
 	};
+	EGLConfig egl_config;
 	EGLint n = 0;
-	EGLConfig *configs = calloc(count, sizeof(EGLConfig));
-	eglChooseConfig(egl_display, config_attribs, configs, count, &n);
-	if (n == 0) {
-		fprintf(stderr, "failed to choose an EGL config\n");
+	if (!eglChooseConfig(egl_display, config_attribs, &egl_config, 1, &n) ||
+			n == 0) {
+		fprintf(stderr, "failed to choose EGL config\n");
 		return EXIT_FAILURE;
 	}
-	EGLConfig egl_config = configs[0];
 
 	EGLint context_attribs[] = {
 		EGL_CONTEXT_CLIENT_VERSION, 2,
@@ -176,8 +189,8 @@ int main(int argc, char *argv[]) {
 
 	struct wl_egl_window *egl_window =
 		wl_egl_window_create(surface, width, height);
-	EGLSurface egl_surface = eglCreateWindowSurface(egl_display, egl_config,
-		(EGLNativeWindowType)egl_window, NULL);
+	EGLSurface egl_surface = eglCreatePlatformWindowSurfaceEXT(egl_display,
+		egl_config, egl_window, NULL);
 
 	if (!eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context)) {
 		fprintf(stderr, "eglMakeCurrent failed\n");
