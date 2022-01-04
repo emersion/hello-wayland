@@ -4,6 +4,14 @@ A hello world Wayland client, 2018 edition.
 
 This is a simple client showing a picture. It uses the [xdg-shell] protocol.
 
+## Dependencies
+
+The following dependencies are required for the Makefile to function properly (contributor-tested on Debian 11 Bullseye, GNOME v3.38.5):
+
+- libwayland-dev
+- wayland-protocols
+- ImageMagick
+
 ## License
 
 MIT
