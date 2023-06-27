@@ -15,6 +15,7 @@
 static const int width = 128;
 static const int height = 128;
 
+static bool configured = false;
 static bool running = true;
 
 static struct wl_shm *shm = NULL;
@@ -32,7 +33,11 @@ static void noop() {
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
 	xdg_surface_ack_configure(xdg_surface, serial);
-	wl_surface_commit(surface);
+	if (configured) {
+		wl_surface_commit(surface);
+	} else {
+		configured = true;
+	}
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
@@ -161,7 +166,9 @@ int main(int argc, char *argv[]) {
 	xdg_toplevel_add_listener(xdg_toplevel, &xdg_toplevel_listener, NULL);
 
 	wl_surface_commit(surface);
-	wl_display_roundtrip(display);
+	while (wl_display_dispatch(display) != -1 && !configured) {
+		// This space intentionally left blank
+	}
 
 	wl_surface_attach(surface, buffer, 0, 0);
 	wl_surface_commit(surface);
