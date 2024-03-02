@@ -30,6 +30,15 @@ static void noop() {
 	// This space intentionally left blank
 }
 
+static void xdg_wm_base_handle_ping(void *data,
+		struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
+	xdg_wm_base_pong(xdg_wm_base, serial);
+}
+
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+	.ping = xdg_wm_base_handle_ping,
+};
+
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
 	xdg_surface_ack_configure(xdg_surface, serial);
@@ -96,6 +105,7 @@ static void handle_global(void *data, struct wl_registry *registry,
 			&wl_compositor_interface, 1);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+		xdg_wm_base_add_listener(xdg_wm_base, &xdg_wm_base_listener, NULL);
 	}
 }
 
