@@ -119,7 +119,7 @@ static const struct wl_registry_listener registry_listener = {
 	.global_remove = handle_global_remove,
 };
 
-static struct wl_buffer *create_buffer() {
+static struct wl_buffer *create_buffer(void) {
 	int stride = width * 4;
 	int size = stride * height;
 
