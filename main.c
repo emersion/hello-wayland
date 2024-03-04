@@ -155,7 +155,9 @@ int main(int argc, char *argv[]) {
 
 	struct wl_registry *registry = wl_display_get_registry(display);
 	wl_registry_add_listener(registry, &registry_listener, NULL);
-	wl_display_roundtrip(display);
+	if (wl_display_roundtrip(display) == -1) {
+		return EXIT_FAILURE;
+	}
 
 	if (shm == NULL || compositor == NULL || xdg_wm_base == NULL) {
 		fprintf(stderr, "no wl_shm, wl_compositor or xdg_wm_base support\n");
