@@ -134,6 +134,7 @@ static const struct wl_registry_listener registry_listener = {
 static struct wl_buffer *create_buffer(void) {
 	int stride = width * 4;
 	int size = stride * height;
+	int offset = 0;
 
 	// Allocate a shared memory file with the right size
 	int fd = create_shm_file(size);
@@ -143,7 +144,7 @@ static struct wl_buffer *create_buffer(void) {
 	}
 
 	// Map the shared memory file
-	shm_data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	shm_data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
 	if (shm_data == MAP_FAILED) {
 		fprintf(stderr, "mmap failed: %m\n");
 		close(fd);
@@ -152,7 +153,7 @@ static struct wl_buffer *create_buffer(void) {
 
 	// Create a wl_buffer from our shared memory file descriptor
 	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, offset, width, height,
 		stride, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 
