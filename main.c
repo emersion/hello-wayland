@@ -163,6 +163,9 @@ static struct wl_buffer *create_buffer(void) {
 	// Copy pixels into our shared memory file (MagickImage is from cat.h)
 	memcpy(shm_data, MagickImage, size);
 
+	// We don't need the mapped memory anymore
+	munmap(shm_data, size);
+
 	return buffer;
 }
 
