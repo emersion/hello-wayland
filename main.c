@@ -27,10 +27,6 @@ static void *shm_data = NULL;
 static struct wl_surface *surface = NULL;
 static struct xdg_toplevel *xdg_toplevel = NULL;
 
-static void noop() {
-	// This space intentionally left blank
-}
-
 static void xdg_wm_base_handle_ping(void *data,
 		struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
 	// The compositor will send us a ping event to check that we're responsive.
@@ -62,6 +58,14 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 	.configure = xdg_surface_handle_configure,
 };
 
+static void xdg_toplevel_handle_configure(void *data, struct xdg_toplevel *toplevel,
+		int32_t width, int32_t height, struct wl_array *states) {
+	// This event is sent before xdg_surface.configure. It specifies the
+	// compositor's desired size and advertises active states for the toplevel.
+	// A resizable client would store these, and resize itself when receiving
+	// the xdg_surface.configure event.
+}
+
 static void xdg_toplevel_handle_close(void *data,
 		struct xdg_toplevel *xdg_toplevel) {
 	// Stop running if the user requests to close the toplevel
@@ -69,9 +73,24 @@ static void xdg_toplevel_handle_close(void *data,
 }
 
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
-	.configure = noop,
+	.configure = xdg_toplevel_handle_configure,
 	.close = xdg_toplevel_handle_close,
 };
+
+static void pointer_handle_enter(void *data, struct wl_pointer *pointer,
+		uint32_t serial, struct wl_surface *surface, int32_t x, int32_t y) {
+	// This space intentionally left blank
+}
+
+static void pointer_handle_leave(void *data, struct wl_pointer *pointer,
+		uint32_t serial, struct wl_surface *surface) {
+	// This space intentionally left blank
+}
+
+static void pointer_handle_motion(void *data, struct wl_pointer *pointer,
+		uint32_t time_ms, int32_t x, int32_t y) {
+	// This space intentionally left blank
+}
 
 static void pointer_handle_button(void *data, struct wl_pointer *pointer,
 		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
@@ -84,12 +103,17 @@ static void pointer_handle_button(void *data, struct wl_pointer *pointer,
 	}
 }
 
+static void pointer_handle_axis(void *data, struct wl_pointer *pointer,
+		uint32_t time_ms, uint32_t axis, wl_fixed_t value) {
+	// This space intentionally left blank
+}
+
 static const struct wl_pointer_listener pointer_listener = {
-	.enter = noop,
-	.leave = noop,
-	.motion = noop,
+	.enter = pointer_handle_enter,
+	.leave = pointer_handle_leave,
+	.motion = pointer_handle_motion,
 	.button = pointer_handle_button,
-	.axis = noop,
+	.axis = pointer_handle_axis,
 };
 
 static void seat_handle_capabilities(void *data, struct wl_seat *seat,
