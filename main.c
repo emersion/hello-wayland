@@ -228,8 +228,10 @@ int main(int argc, char *argv[]) {
 
 	// Perform the initial commit and wait for the first configure event
 	wl_surface_commit(surface);
-	while (wl_display_dispatch(display) != -1 && !configured) {
-		// This space intentionally left blank
+	while (!configured) {
+		if (wl_display_dispatch(display) == -1) {
+			return EXIT_FAILURE;
+		}
 	}
 
 	// Create a wl_buffer, attach it to the surface and commit the surface
