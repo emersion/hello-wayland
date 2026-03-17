@@ -16,6 +16,7 @@ static const int width = 128;
 static const int height = 128;
 
 static bool configured = false;
+static uint32_t initial_configure_serial = 0;
 static bool running = true;
 
 static struct wl_shm *shm = NULL;
@@ -43,17 +44,18 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
 
 static void xdg_surface_handle_configure(void *data,
 		struct xdg_surface *xdg_surface, uint32_t serial) {
-	// The compositor configures our surface, acknowledge the configure event
-	xdg_surface_ack_configure(xdg_surface, serial);
-
 	if (configured) {
 		// If this isn't the first configure event we've received, we already
 		// have a buffer attached, so no need to do anything. Commit the
 		// surface to apply the configure acknowledgement.
+		xdg_surface_ack_configure(xdg_surface, serial);
 		wl_surface_commit(surface);
+	} else {
+		// Store the configure serial to apply it later, when we perform the
+		// initial commit.
+		initial_configure_serial = serial;
+		configured = true;
 	}
-
-	configured = true;
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
@@ -213,6 +215,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	wl_surface_attach(surface, buffer, 0, 0);
+	xdg_surface_ack_configure(xdg_surface, initial_configure_serial);
 	wl_surface_commit(surface);
 
 	// Continue dispatching events until the user closes the toplevel
