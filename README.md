@@ -1,4 +1,4 @@
-# hello-wayland
+# [hello-wayland]
 
 A hello world Wayland client, 2018 edition.
 
@@ -16,4 +16,5 @@ The following dependencies are required for the Makefile to function properly:
 
 MIT
 
+[hello-wayland]: https://gitlab.freedesktop.org/emersion/hello-wayland
 [xdg-shell]: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/tree/master/stable/xdg-shell
